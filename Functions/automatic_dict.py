@@ -51,7 +51,7 @@ merger_dict={
 def rvalue_selector(dataframe, eval):
     if eval not in list(rv_limit_analysis.keys()):
         r_method = dataframe['Methodology'].unique().tolist()[0]
-        print('''This evaluation has no mmethod selected as Referenced method, 
+        print('''This evaluation has no method selected as Referenced method, 
                     the first methodology in the data will serve as such''')
         print(f'Method selected as referenced value was: {r_method}')
         return str(r_method)
