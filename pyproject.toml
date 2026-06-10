@@ -1,0 +1,48 @@
+[project]
+name = "statsops"
+version = "0.1.0"
+description = "Python library focused on statistical analysis, automated reporting, metrics generation, benchmarking, and component comparisons"
+authors = [
+    {name = "Bakstyx",email = "bakstyx.012@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy (>=2.4.6,<3.0.0)",
+    "pandas (>=3.0.3,<4.0.0)",
+    "statsmodels (>=0.14.6,<0.15.0)",
+    "bioinfokit (>=2.1.4,<3.0.0)",
+    "pingouin (>=0.6.1,<0.7.0)",
+    "scikit-learn (>=1.9.0,<2.0.0)",
+    "tabulate (>=0.10.0,<0.11.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dependencies]
+logger-service-python = {version="*", source = "fury"}
+
+[[tool.poetry.source]]
+name = "fury"
+url = "https://pypi.fury.io/bakstyx/"
+priority = "supplemental"
+
+[tool.poetry.group.develop.dependencies]
+jupyter = "^1.1.1"
+ruff = "^0.15.15"
+
+[tool.ruff]
+line-length = 70
+select = ["E", "F", "W", "C90", "B", "B9", "I", "Q"]
+ignore = ["E501", "E203"]
+exclude = ["node_modules", ".venv", "venv", "__pycache__"]
+per-file-ignores = { "__init__.py" = ["F401"] }
+fix = true
+target-version = "py313"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
