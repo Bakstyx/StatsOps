@@ -6,7 +6,14 @@ import pandas as pd
 
 #Functions
 
-def replace_with (element):
+def replace_with (element:str):
+    """
+    Replace special characters in a string with specified alternatives.
+    Args:
+        element (str): The input string to be processed.
+    Returns:
+        str: The processed string.
+    """
     chars_a = [":", "+", "-", "<", ">", "(", ")", "[", "]"]
     chars_b = ["/", ".", ",", "-", "  ", " "]
     chars_c = ["ñ"]
@@ -24,26 +31,7 @@ def replace_with (element):
             element = element.replace(char, "nn")
     return element
 
-def standard_name(names):
-    if isinstance(names, list):
-        lista= []
-        for name in names:
-            replaced_name = replace_with(name)
-            lista.append(replaced_name)
-        return lista
-    elif isinstance(names, str):
-        name = replace_with(names)
-        return name
-    else:
-        element = names.type()
-        print(f"{element} type incorrect")
 
-def name(name):
-    if "ñ" in name:
-        a = name.replace("ñ", "n")
-        return str(a)
-    else:
-        return str(name)
 
 def standard_dataframe(dataframe: pd.DataFrame):
     for column in dataframe.columns.tolist():
