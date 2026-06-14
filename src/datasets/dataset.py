@@ -1,13 +1,12 @@
 ### Libs
 import pandas as pd
 import numpy as np
-import random
 from tabulate import tabulate
 
-
 from src.standard_format import replace_with
-from metadata import DatasetMetadata
-from schema import DatasetSchema, SchemaDetector
+from .metadata import DatasetMetadata
+from .schema import DatasetSchema
+from .detector import SchemaDetector
 
 
 class Dataset():
@@ -16,28 +15,39 @@ class Dataset():
                 data: pd.DataFrame,
                 metadata: DatasetMetadata | None = None,
                 schema: DatasetSchema | None = None,
-                target_column: str | None = None,
-                groups_columns: list | None = None
+                automatic_dtype_definition: bool = True
         ):
+        """_summary_
+
+        Args:
+            data (pd.DataFrame): The input DataFrame containing the dataset.
+            metadata (DatasetMetadata | None, optional): The metadata for the dataset. Defaults to None.
+            schema (DatasetSchema | None, optional): The schema for the dataset. Defaults to None.
+            automatic_dtype_definition (bool, optional): Whether to automatically define data types. Use most applicable dtypes based on the data. Defaults to True.
+        """
         # Process data first, then initialize parent with processed data
         self.data = data
         self.__process_data()
-        self.schema = (
-            schema
-            if schema is not None
-            else SchemaDetector().detect_schema(data)
-        )
         self.metadata = (
             metadata
             if metadata is not None
             else DatasetMetadata.from_dataframe(data)
         )
+        self.automatic_dtype_definition = automatic_dtype_definition
+        self.schema = (
+            schema
+            if schema is not None
+            else SchemaDetector().detect_schema(data)
+        )
 
 
     @classmethod
-    def from_dataframe(cls, df):
-        schema = SchemaDetector().detect_schema(df)
+    def from_dataframe(
+        cls,
+        df: pd.DataFrame,
+    ):
         metadata = DatasetMetadata.from_dataframe(df)
+        schema = SchemaDetector().detect_schema(df)
         return cls(
             data=df,
             metadata=metadata,

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-import pandas as pd
-
+from tabulate import tabulate
 
 @dataclass(slots=True)
 class ColumnSchema:
@@ -9,6 +8,7 @@ class ColumnSchema:
     nullable: bool
     nunique_values: int
     unique: bool
+    categorical: bool
     unique_values: list | None
     value_counts: int | None
 
@@ -16,24 +16,12 @@ class ColumnSchema:
 class DatasetSchema:
     columns: list[ColumnSchema]
 
+    def __repr__(self):
+        return tabulate(
+            [[col.name, col.dtype, col.nullable, col.nunique_values, col.unique, col.categorical, col.unique_values, col.value_counts] for col in self.columns],
+            headers=["Column Name", "Data Type", "Nullable", "Unique Values Count", "Is Unique", "Is Categorical", "Unique Values (if <10)", "Total Values"],
+            tablefmt="grid"
+        )
 
-class SchemaDetector:
-    def __init__(self):
-        pass
 
-    def detect_schema(self, dataframe: pd.DataFrame):
-        columns_schema = []
-        for col in dataframe.columns:
-            column_schema = ColumnSchema(
-                name=col,
-                dtype=str(dataframe[col].dtype),
-                nullable=bool(dataframe[col].isnull().any()),
-                nunique_values=dataframe[col].nunique(),
-                value_counts=len(dataframe[col]),
-                unique=bool(dataframe[col].is_unique),
-                unique_values=dataframe[col].unique().tolist()
-                if dataframe[col].nunique() < 10
-                else None,
-            )
-            columns_schema.append(column_schema)
-        return DatasetSchema(columns=columns_schema)
+

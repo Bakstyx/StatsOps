@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-
 import pandas as pd
-
 
 
 @dataclass(slots=True)
@@ -10,9 +8,10 @@ class DatasetMetadata:
     name: str
     description: str
     source: str
+    author: str
     date_collected: str
-    groups_columns: list
-    target_column: str
+    groups_columns: list | None = None
+    target_column: str | None = None
     time_column: str | None = None
     version: str | None = None
     num_rows: int | None = None
@@ -23,33 +22,34 @@ class DatasetMetadata:
     def from_dataframe(
         cls,
         df: pd.DataFrame,
-        target_column: str,
-        groups_columns: list,
         name: str = "Unknown",
         description: str = "No description",
         source: str = "Unknown",
+        author: str = "Unknown",
+        target_column: str | None = None,
+        groups_columns: list | None = None,
         time_column: str | None = None,
         version: str | None = None,
     ):
-        """Create DatasetMetadata from a DataFrame and additional information.
-
+        """
+        Create DatasetMetadata from a DataFrame and additional information.
         Args:
-            df (pd.DataFrame): _description_
-            target_column (str): _description_
-            groups_columns (list): _description_
-            name (str, optional): _description_. Defaults to "Unknown".
-            description (str, optional): _description_. Defaults to "No description".
-            source (str, optional): _description_. Defaults to "Unknown".
-            time_column (str | None, optional): _description_. Defaults to None.
-            version (str | None, optional): _description_. Defaults to None.
-
+            df (pd.DataFrame): The DataFrame to extract metadata from.
+            target_column (str | None): The column name of the target variable. Defaults to None.
+            groups_columns (list | None): A list of column names to group by. Defaults to None.
+            name (str, optional): The name of the dataset. Defaults to "Unknown".
+            description (str, optional): A description of the dataset. Defaults to "No description".
+            source (str, optional): The source of the dataset. Defaults to "Unknown".
+            time_column (str | None, optional): The column name for the time variable. Defaults to None.
+            version (str | None, optional): The version of the dataset. Defaults to None.
         Returns:
-            _type_: _description_
+            DatasetMetadata: The created DatasetMetadata instance.
         """
         return cls(
             name=name,
             description=description,
             source=source,
+            author=author,
             date_collected=datetime.now().strftime(
                 "%Y-%m-%d %H:%M:%S"
             ),
@@ -66,7 +66,8 @@ class DatasetMetadata:
 
     @classmethod
     def update(cls, **kwargs):
-        """ Update metadata attributes.
+        """
+        Update metadata attributes.
         Args:
             **kwargs: Attribute names and values to update.
             Valid attributes: name, description, source,
@@ -75,10 +76,16 @@ class DatasetMetadata:
         Raises:
             AttributeError: If an invalid attribute is provided.
         """
+
         valid_attributes = {
-            "name", "description", "source",
-            "groups_columns", "target_column",
-            "time_column", "version"
+            "name",
+            "description",
+            "source",
+            "author",
+            "groups_columns",
+            "target_column",
+            "time_column",
+            "version",
         }
 
         for key, value in kwargs.items():
@@ -87,3 +94,22 @@ class DatasetMetadata:
             setattr(cls, key, value)
 
 
+    def asdict(self):
+        """
+        Convert the DatasetMetadata instance to a dictionary.
+        Returns:
+            dict: A dictionary representation of the DatasetMetadata instance.
+        """
+        return {
+            "name": self.name,
+            "description": self.description,
+            "source": self.source,
+            "date_collected": self.date_collected,
+            "groups_columns": self.groups_columns,
+            "target_column": self.target_column,
+            "time_column": self.time_column,
+            "version": self.version,
+            "num_rows": self.num_rows,
+            "num_columns": self.num_columns,
+            "column_types": self.column_types,
+        }
