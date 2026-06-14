@@ -48,7 +48,7 @@ def anova_categorial_dtypes(dataframe):
 
 #remove "_" so in the grafics or tables
 def remove_under_score(name):
-    if type(name) == str:
+    if isinstance(name, str):
         name  = name.replace("_", " ")
         return str(name)
     else:

@@ -6,14 +6,44 @@ from tabulate import tabulate
 
 
 from src.standard_format import replace_with
+from metadata import DatasetMetadata
+from schema import DatasetSchema, SchemaDetector
 
 
 class Dataset():
 
-    def __init__(self, data: pd.DataFrame):
+    def __init__(self,
+                data: pd.DataFrame,
+                metadata: DatasetMetadata | None = None,
+                schema: DatasetSchema | None = None,
+                target_column: str | None = None,
+                groups_columns: list | None = None
+        ):
         # Process data first, then initialize parent with processed data
         self.data = data
         self.__process_data()
+        self.schema = (
+            schema
+            if schema is not None
+            else SchemaDetector().detect_schema(data)
+        )
+        self.metadata = (
+            metadata
+            if metadata is not None
+            else DatasetMetadata.from_dataframe(data)
+        )
+
+
+    @classmethod
+    def from_dataframe(cls, df):
+        schema = SchemaDetector().detect_schema(df)
+        metadata = DatasetMetadata.from_dataframe(df)
+        return cls(
+            data=df,
+            metadata=metadata,
+            schema=schema,
+        )
+
 
     @property
     def _constructor(self):
