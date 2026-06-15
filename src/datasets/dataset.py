@@ -1,4 +1,5 @@
 ### Libs
+from typing import Literal
 import pandas as pd
 import numpy as np
 from tabulate import tabulate
@@ -39,6 +40,13 @@ class Dataset():
             if schema is not None
             else SchemaDetector().create_schema(data)
         )
+        if self.automatic_dtype_definition:
+            self.data, self.schema = (
+                SchemaDetector().apply_automatic_dtype_logic(
+                    self.data,
+                    schema=self.schema,
+                )
+            )
 
 
     @classmethod
@@ -89,31 +97,25 @@ class Dataset():
         return self.data.select_dtypes(
             include=[np.number, np.float64, np.int64]).columns.tolist()
 
-    def get_dataset_info(self, complete=True, to_file=False):
-        # WIP - add more info, and add option to export to file
-        dataframe = {}
-        # Generation of dataset info
-        dataframe["Column"] = self.data.columns
-        dataframe["Dtypes"] = [self.data[col].dtypes for col in self.data.columns]
-        dataframe["Rows"] = [len(self.data[col]) for col in self.data.columns]
-        dataframe["Categorized"] = ["Yes"
-                                    if (len(self.data[col].unique()) / len(self.data[col])) <= 0.1 and (str(self.data[col].dtypes) == "object" or str(self.data[col].dtypes) == "string" or str(self.data[col].dtypes) == "category")
-                                    else "No"
-                                    for col in self.data.columns]
-        if complete:
-            dataframe["Null values"] = [len(self.data[col].isnull().loc[lambda x: x])
-                                            for col in self.data.columns]
-            dataframe["Inf values"] = [len(self.data[col].loc[lambda x: (x == np.inf) | (x == -np.inf)])
-                                        for col in self.data.columns]
-            dataframe["NA values"] = [len(self.data[col].loc[lambda x: (x == "NA") | (x == "") | (x == " ")])
-                                        for col in self.data.columns]
-            dataframe["Duplicates"] = [len(self.data[col].duplicated().loc[lambda x: x])
-                                        for col in self.data.columns]
-
-        dataframe = pd.DataFrame(data=dataframe)
-        if to_file:
-            print(tabulate(dataframe.values, headers=list(dataframe.columns),
-                            tablefmt="grid"))
-        return dataframe
+    def modify_column_schema(
+        self,
+        column: str,
+        new_dtype: Literal["int64", "float64", "category", "string"],
+    ):
+        """
+        Modify the schema of a specific column and update the dataset accordingly.
+        Args:
+            column: Column name to modify
+            new_dtype: Target datatype (e.g., 'int64', 'float64', 'category', 'string')
+        """
+        modified_df, updated_schema = SchemaDetector().modify_column_dtype(
+            self.data,
+            column,
+            new_dtype,
+            self.schema,
+        )
+        self.data = modified_df
+        self.schema = updated_schema
+        return self
 
 
