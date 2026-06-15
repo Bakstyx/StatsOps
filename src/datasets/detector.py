@@ -7,28 +7,33 @@ class SchemaDetector:
     def __init__(self):
         pass
 
-    def detect_schema(self, dataframe: pd.DataFrame):
+    def __set_column_schema__(self, dataframe: pd.DataFrame, column: str) -> ColumnSchema:
+        return ColumnSchema(
+            name=column,
+            dtype=str(dataframe[column].dtype),
+            categorical=(
+                dataframe[column].nunique() / len(dataframe[column])
+            )
+            < 0.2,
+            nullable=bool(dataframe[column].isnull().any()),
+            nunique_values=dataframe[column].nunique(),
+            value_counts=len(dataframe[column]),
+            unique=bool(dataframe[column].is_unique),
+            unique_values=(
+                dataframe[column].unique().tolist()
+                if dataframe[column].nunique() < 10
+                else None
+            ),
+        )
+
+    def create_schema(self, dataframe: pd.DataFrame):
         columns_schema = []
         for col in dataframe.columns:
-            column_schema = ColumnSchema(
-                name=col,
-                dtype=str(dataframe[col].dtype),
-                categorical=(
-                    dataframe[col].nunique() / len(dataframe[col])
-                )
-                < 0.2,
-                nullable=bool(dataframe[col].isnull().any()),
-                nunique_values=dataframe[col].nunique(),
-                value_counts=len(dataframe[col]),
-                unique=bool(dataframe[col].is_unique),
-                unique_values=(
-                    dataframe[col].unique().tolist()
-                    if dataframe[col].nunique() < 10
-                    else None
-                ),
-            )
+            column_schema = self.__set_column_schema__(dataframe, col)
             columns_schema.append(column_schema)
         return DatasetSchema(columns=columns_schema)
+
+
 
     def modify_column_dtype(
         self,
@@ -39,13 +44,11 @@ class SchemaDetector:
     ) -> tuple[pd.DataFrame, DatasetSchema]:
         """
         Modify the datatype of a specific column and update the schema.
-
         Args:
             dataframe: The input dataframe
             column: Column name to modify
             new_dtype: Target datatype (e.g., 'int64', 'float64', 'category', 'string')
             schema: Current DatasetSchema
-
         Returns:
             Tuple of (modified_dataframe, updated_schema)
         """
@@ -65,28 +68,11 @@ class SchemaDetector:
                 f"Cannot convert column '{column}' to dtype '{new_dtype}': {str(e)}"
             ) from e
 
-        # Update schema for the modified column
+        # Update schema
         updated_columns = []
         for col_schema in schema.columns:
             if col_schema.name == column:
-                updated_col_schema = ColumnSchema(
-                    name=col_schema.name,
-                    dtype=str(modified_df[column].dtype),
-                    categorical=(
-                        modified_df[column].nunique()
-                        / len(modified_df[column])
-                    )
-                    < 0.2,
-                    nullable=bool(modified_df[column].isnull().any()),
-                    nunique_values=modified_df[column].nunique(),
-                    value_counts=len(modified_df[column]),
-                    unique=bool(modified_df[column].is_unique),
-                    unique_values=(
-                        modified_df[column].unique().tolist()
-                        if modified_df[column].nunique() < 10
-                        else None
-                    ),
-                )
+                updated_col_schema = self.__set_column_schema__(modified_df, column)
                 updated_columns.append(updated_col_schema)
             else:
                 updated_columns.append(col_schema)
@@ -123,6 +109,6 @@ class SchemaDetector:
                     ) from e
 
         # Regenerate schema for the modified dataframe
-        new_schema = self.detect_schema(modified_df)
+        new_schema = self.create_schema(modified_df)
 
         return modified_df, new_schema

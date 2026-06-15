@@ -37,7 +37,7 @@ class Dataset():
         self.schema = (
             schema
             if schema is not None
-            else SchemaDetector().detect_schema(data)
+            else SchemaDetector().create_schema(data)
         )
 
 
@@ -47,7 +47,7 @@ class Dataset():
         df: pd.DataFrame,
     ):
         metadata = DatasetMetadata.from_dataframe(df)
-        schema = SchemaDetector().detect_schema(df)
+        schema = SchemaDetector().create_schema(df)
         return cls(
             data=df,
             metadata=metadata,
