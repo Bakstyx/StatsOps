@@ -32,7 +32,7 @@ class DatasetValidator:
 
 class ValidationReport:
     def __init__(self):
-        self.columns_validations: DatasetValidator | None = None
+        pass
 
     def validate_column(
         self,
@@ -99,281 +99,119 @@ class ValidationReport:
 
         dataset_empty = dataframe.empty
 
-        self.columns_validations = DatasetValidator(
+        self.validations = DatasetValidator(
             columns_validations=columns_validations,
             dataset_empty=dataset_empty,
         )
 
-        return self.columns_validations
+        return self.validations
 
 #######################################
-#       SPECIAL COLUMNS VALIDATION    #
+#       REPORT COLUMNS VALIDATION    #
 #######################################
 
 
-    def _is_valid_categorical_type(self, column_data: pd.Series) -> bool:
-        """Check if column is str or categorical type."""
-        col_dtype = column_data.dtype
-        return (
-            col_dtype == "object"
-            or col_dtype == "category"
-            or pd.api.types.is_string_dtype(column_data)
-        )
+    def report_metadata(self, metadata: DatasetMetadata) :
+        report = []
 
-    def _is_valid_numeric_or_categorical_type(
-        self, column_data: pd.Series
-    ) -> bool:
-        """Check if column is numeric or categorical type."""
-        is_numeric = pd.api.types.is_numeric_dtype(column_data)
-        is_valid_categorical = self._is_valid_categorical_type(
-            column_data
-        )
-        return is_numeric or is_valid_categorical
+        report.append("DATASET METADATA")
+        report.append(f"Name: {metadata.name}")
+        report.append(f"Description: {metadata.description}")
+        report.append(f"Source: {metadata.source}")
+        report.append(f"Author: {metadata.author}")
+        report.append(f"Date Collected: {metadata.date_collected}")
+        report.append(f"Version: {metadata.version}")
+        report.append(f"Rows: {metadata.num_rows}, Columns: {metadata.num_columns}")
+        report.append(f"Target Column: {metadata.target_column}")
+        report.append(f"Groups Columns: {metadata.groups_columns}")
 
-    def _check_empty_values(
-        self,
-        column_data: pd.Series,
-        column_name: str,
-        context: str = "Column",
-    ) -> tuple[list, list]:
-        """
-        Check for null/empty values in a column.
+        return report
 
-        Args:
-            column_data: The column data to check.
-            column_name: Name of the column for error messages.
-            context: Context prefix for messages (e.g., 'groups_columns', 'target_column').
 
-        Returns:
-            Tuple of (errors, warnings) lists.
-        """
-        errors = []
-        warnings = []
-
-        if column_data.isna().all():
-            errors.append(
-                f"{context}: {column_name} contains all empty/null values"
-            )
-        elif column_data.isna().sum() > 0:
-            warnings.append(
-                f"{context}: {column_name} has {column_data.isna().sum()} null values"
-            )
-
-        return errors, warnings
-
-    def _check_categorical_empty_strings(
-        self, column_data: pd.Series, column_name: str, context: str = "Column"
-    ) -> list:
-        """
-        Check for empty strings in categorical columns.
-
-        Args:
-            column_data: The column data to check.
-            column_name: Name of the column for error messages.
-            context: Context prefix for messages.
-
-        Returns:
-            List of warning messages.
-        """
-        warnings = []
-
-        if column_data.dtype == "object":
-            empty_strings = (column_data == "").sum()
-            if empty_strings > 0:
-                warnings.append(
-                    f"{context}: {column_name} contains {empty_strings} empty strings"
+    def validate_target_column(self, dataset_empty: bool, metadata: DatasetMetadata) -> List[str]:
+        messages = []
+        if metadata.target_column:
+            if dataset_empty is False:  # Only validate target column if dataset is not empty
+                target_col = next(
+                    (
+                        col
+                        for col in self.validations.columns_validations
+                        if col.schema.name == metadata.target_column
+                    ),
+                    None,
                 )
+                messages.append(f"Validating target column '{metadata.target_column}'...")
+                if target_col is None:
+                    messages.append(
+                        f"[ERROR] Target column '{metadata.target_column}' not found in dataset."
+                    )
+                else:
+                    if target_col.schema.dtype not in ["int64", "float64"]:
+                        messages.append(
+                            f"[ERROR] Target column '{metadata.target_column}' must be numeric (int64 or float64)."
+                        )
+                    if target_col.validation.column_empty:
+                        messages.append(
+                            f"[CRITICAL] Target column '{metadata.target_column}' is empty."
+                        )
+                    if target_col.validation.missing_values > 0:
+                        messages.append(
+                            f"[CRITICAL] Target column '{metadata.target_column}' has {target_col.validation.missing_values} missing values."
+                        )
+                    if target_col.validation.duplicate_rows > 0:
+                        messages.append(
+                            f"[WARNING] Target column '{metadata.target_column}' has {target_col.validation.duplicate_rows} duplicate rows."
+                        )
+                    if target_col.validation.constant_column:
+                        messages.append(
+                            f"[WARNING] Target column '{metadata.target_column}' is constant."
+                        )
+                    if target_col.validation.invalid_datatypes:
+                        messages.append(
+                            f"[ERROR] Target column '{metadata.target_column}' has invalid data types."
+                        )
+        else:
+            messages.append("[CRITICAL] No target column specified in metadata.")
+        return messages
 
-        return warnings
 
-    def _check_numeric_inf_values(
-        self, column_data: pd.Series, column_name: str, context: str = "Column"
-    ) -> list:
-        """
-        Check for infinite values in numeric columns.
+    def validate_groups_columns(self, dataset_empty: bool, metadata: DatasetMetadata) -> List[str]:
+        messages = []
+        if metadata.groups_columns:
+            if dataset_empty is False:  # Only validate groups columns if dataset is not empty
+                for group_col in metadata.groups_columns:
+                    group_col_validation = next(
+                        (
+                            col
+                            for col in self.validations.columns_validations
+                            if col.schema.name == group_col
+                        ),
+                        None,
+                    )
+                    messages.append(f"Validating groups column '{group_col}'...")
+                    if group_col_validation is None:
+                        messages.append(
+                            f"[ERROR] Groups column '{group_col}' not found in dataset."
+                        )
+                    else:
+                        if group_col_validation.validation.column_empty:
+                            messages.append(
+                                f"[CRITICAL] Groups column '{group_col}' is empty."
+                            )
+                        if group_col_validation.validation.missing_values > 0:
+                            messages.append(
+                                f"[CRITICAL] Groups column '{group_col}' has {group_col_validation.validation.missing_values} missing values."
+                            )
+                        #! WIP
 
-        Args:
-            column_data: The column data to check.
-            column_name: Name of the column for error messages.
-            context: Context prefix for messages.
-
-        Returns:
-            List of error messages.
-        """
-        errors = []
-
-        if pd.api.types.is_numeric_dtype(column_data):
-            inf_count = (column_data == float("inf")).sum() + (
-                column_data == float("-inf")
-            ).sum()
-            if inf_count > 0:
-                errors.append(
-                    f"{context}: {column_name} contains {inf_count} inf/-inf values"
-                )
-
-        return errors
-
-    def _validate_groups_columns(
-        self, dataframe: pd.DataFrame, groups_columns: list | None
-    ) -> tuple[list, list]:
-        """
-        Validate groups_columns specification.
-
-        Args:
-            dataframe: DataFrame to validate against.
-            groups_columns: List of column names to validate.
-
-        Returns:
-            Tuple of (errors, warnings) lists.
-        """
-        errors = []
-        warnings = []
-
-        if groups_columns is None:
-            return errors, warnings
-
-        if not isinstance(groups_columns, list):
-            errors.append(
-                f"groups_columns must be a list, got {type(groups_columns)}"
-            )
-            return errors, warnings
-
-        for col in groups_columns:
-            # Check column exists
-            if col not in dataframe.columns:
-                errors.append(
-                    f"groups_columns: Column '{col}' not found in DataFrame"
-                )
-                continue
-
-            col_data = dataframe[col]
-            col_dtype = col_data.dtype
-
-            # Check data type
-            if not self._is_valid_categorical_type(col_data):
-                errors.append(
-                    f"groups_columns: Column '{col}' has dtype {col_dtype}, must be str or categorical"
-                )
-
-            # Check for empty values
-            col_errors, col_warnings = self._check_empty_values(
-                col_data, f"'{col}'", context="groups_columns"
-            )
-            errors.extend(col_errors)
-            warnings.extend(col_warnings)
-
-            # Check for empty strings
-            col_warnings = self._check_categorical_empty_strings(
-                col_data, f"'{col}'", context="groups_columns"
-            )
-            warnings.extend(col_warnings)
-
-        return errors, warnings
-
-    def _validate_target_column(
-        self, dataframe: pd.DataFrame, target_column: str | None
-    ) -> tuple[list, list]:
-        """
-        Validate target_column specification.
-
-        Args:
-            dataframe: DataFrame to validate against.
-            target_column: Column name to validate.
-
-        Returns:
-            Tuple of (errors, warnings) lists.
-        """
-        errors = []
-        warnings = []
-
-        if target_column is None:
-            return errors, warnings
-
-        if not isinstance(target_column, str):
-            errors.append(
-                f"target_column must be a string, got {type(target_column)}"
-            )
-            return errors, warnings
-
-        # Check column exists
-        if target_column not in dataframe.columns:
-            errors.append(
-                f"target_column: Column '{target_column}' not found in DataFrame"
-            )
-            return errors, warnings
-
-        col_data = dataframe[target_column]
-        col_dtype = col_data.dtype
-
-        # Check data type
-        if not self._is_valid_numeric_or_categorical_type(col_data):
-            errors.append(
-                f"target_column: Column '{target_column}' has dtype {col_dtype}, must be numeric or categorical"
-            )
-
-        # Check for empty values
-        col_errors, col_warnings = self._check_empty_values(
-            col_data, f"'{target_column}'", context="target_column"
-        )
-        errors.extend(col_errors)
-        warnings.extend(col_warnings)
-
-        # Check for inf values
-        col_errors = self._check_numeric_inf_values(
-            col_data, f"'{target_column}'", context="target_column"
-        )
-        errors.extend(col_errors)
-
-        # Check for empty strings
-        col_warnings = self._check_categorical_empty_strings(
-            col_data, f"'{target_column}'", context="target_column"
-        )
-        warnings.extend(col_warnings)
-
-        return errors, warnings
-
-    def validate_special_columns(
-        self, dataframe: pd.DataFrame, metadata: DatasetMetadata
-    ) -> Dict[str, List[str]]:
-        """
-        Validate groups_columns and target_column against DataFrame requirements.
-
-        Validation rules:
-        - groups_columns: Must be str or categorical (object/category dtype) with non-empty values
-        - target_column: Must be numeric or categorical with non-empty values and no inf values
-
-        Args:
-            dataframe (pd.DataFrame): The DataFrame to validate against.
-            metadata (DatasetMetadata): The metadata containing column specifications.
-
-        Returns:
-            Dict with 'errors' and 'warnings' lists.
-        """
-        errors = []
-        warnings = []
-
-        # Validate groups_columns
-        col_errors, col_warnings = self._validate_groups_columns(
-            dataframe, metadata.groups_columns
-        )
-        errors.extend(col_errors)
-        warnings.extend(col_warnings)
-
-        # Validate target_column
-        col_errors, col_warnings = self._validate_target_column(
-            dataframe, metadata.target_column
-        )
-        errors.extend(col_errors)
-        warnings.extend(col_warnings)
-
-        return {"errors": errors, "warnings": warnings}
+        return messages
 
     def generate_report(
         self,
         metadata: DatasetMetadata,
-        dataframe: pd.DataFrame | None = None,
+        #dataframe: pd.DataFrame | None = None,
     ) -> str:
-        if self.columns_validations is None:
+        if self.validations is None:
             return "No validation performed yet."
 
         report = []
@@ -385,26 +223,21 @@ class ValidationReport:
         report.append("")
 
         # Dataset metadata information
-        report.append("[DATASET INFORMATION]")
-        report.append(f"Name: {metadata.name}")
-        report.append(f"Description: {metadata.description}")
-        report.append(f"Source: {metadata.source}")
-        report.append(f"Author: {metadata.author}")
-        report.append(f"Date Collected: {metadata.date_collected}")
-        report.append(f"Version: {metadata.version}")
-        report.append(f"Rows: {metadata.num_rows}, Columns: {metadata.num_columns}")
+        report.extend(self.report_metadata(metadata))
         report.append("")
 
         # Dataset level validations
-        if self.columns_validations.dataset_empty:
+        if self.validations.dataset_empty:
             report.append("[CRITICAL] The dataset is empty.")
             report.append("")
+
+
 
         # Column validations
         report.append("[COLUMN VALIDATIONS]")
         has_column_issues = False
 
-        for column_validation in self.columns_validations.columns_validations:
+        for column_validation in self.validations.columns_validations:
             if column_validation.messages:
                 has_column_issues = True
                 report.append(f"\nColumn: {column_validation.schema.name}")
@@ -416,10 +249,10 @@ class ValidationReport:
         report.append("")
 
         # Special columns validation (groups_columns and target_column)
-        if dataframe is not None:
+        if self.validations.dataset_empty is False:  # Only validate special columns if dataset is not empty
             report.append("[SPECIAL COLUMNS VALIDATION]")
             special_validation = self.validate_special_columns(
-                dataframe, metadata
+                self.columns_validations.dataset_empty, metadata
             )
 
             has_special_issues = (
