@@ -10,7 +10,7 @@ class DatasetMetadata:
     source: str
     author: str
     date_collected: str
-    groups_columns: list | None = None
+    groups_columns: list[str] | None = None
     target_column: str | None = None
     time_column: str | None = None
     version: str | None = None

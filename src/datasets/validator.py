@@ -21,7 +21,6 @@ class ColumnValidator:
 class ColumnValidations:
     schema: ColumnSchema
     validation: ColumnValidator
-    messages: List[str]
 
 
 @dataclass(slots=True)
@@ -56,32 +55,9 @@ class ValidationReport:
             + (column_data == float("-inf")).sum(),
         )
 
-        messages = []
-        if column_validator.column_empty:
-            messages.append(f"Column '{column_name}' is empty.")
-        if column_validator.missing_values > 0:
-            messages.append(
-                f"Column '{column_name}' has {column_validator.missing_values} missing values."
-            )
-        if column_validator.duplicate_rows > 0:
-            messages.append(
-                f"Column '{column_name}' has {column_validator.duplicate_rows} duplicate rows."
-            )
-        if column_validator.constant_column:
-            messages.append(f"Column '{column_name}' is constant.")
-        if column_validator.invalid_datatypes:
-            messages.append(
-                f"Column '{column_name}' has invalid data types."
-            )
-        if column_validator.infinite_values > 0:
-            messages.append(
-                f"Column '{column_name}' has {column_validator.infinite_values} infinite values."
-            )
-
         return ColumnValidations(
             schema=column_schema,
-            validation=column_validator,
-            messages=messages,
+            validation=column_validator
         )
 
     def validate_dataset(
@@ -128,6 +104,40 @@ class ValidationReport:
         return report
 
 
+    def report_on_column(self, column_validation: ColumnValidations, is_target: bool=False, is_group: bool=False) -> List[str]:
+        messages = []
+        validation = column_validation.validation
+
+        is_important_column = is_target or is_group
+        code = "[CRITICAL]" if is_important_column else "[WARNING]"
+
+        if validation.column_empty:
+            messages.append(f"{code} Column '{validation.column_name}' is empty.")
+
+        if validation.missing_values > 0:
+            messages.append(
+                f"{code} Column '{validation.column_name}' has {validation.missing_values} missing values."
+            )
+        if validation.duplicate_rows > 0:
+            messages.append(
+                f"[WARNING] Column '{validation.column_name}' has {validation.duplicate_rows} duplicate rows."
+            )
+        if validation.constant_column:
+            messages.append(
+                f"[WARNING] Column '{validation.column_name}' is constant."
+            )
+        if validation.invalid_datatypes:
+            messages.append(
+                f"{code} Column '{validation.column_name}' has invalid data types."
+            )
+        if validation.infinite_values > 0:
+            messages.append(
+                f"{code} Column '{validation.column_name}' has {validation.infinite_values} infinite values."
+            )
+
+        return messages
+
+
     def validate_target_column(self, dataset_empty: bool, metadata: DatasetMetadata) -> List[str]:
         messages = []
         if metadata.target_column:
@@ -142,36 +152,18 @@ class ValidationReport:
                 )
                 messages.append(f"Validating target column '{metadata.target_column}'...")
                 if target_col is None:
-                    messages.append(
-                        f"[ERROR] Target column '{metadata.target_column}' not found in dataset."
-                    )
+                    messages.append("[ERROR] Column return empty")
+                    return messages
                 else:
                     if target_col.schema.dtype not in ["int64", "float64"]:
                         messages.append(
                             f"[ERROR] Target column '{metadata.target_column}' must be numeric (int64 or float64)."
                         )
-                    if target_col.validation.column_empty:
-                        messages.append(
-                            f"[CRITICAL] Target column '{metadata.target_column}' is empty."
-                        )
-                    if target_col.validation.missing_values > 0:
-                        messages.append(
-                            f"[CRITICAL] Target column '{metadata.target_column}' has {target_col.validation.missing_values} missing values."
-                        )
-                    if target_col.validation.duplicate_rows > 0:
-                        messages.append(
-                            f"[WARNING] Target column '{metadata.target_column}' has {target_col.validation.duplicate_rows} duplicate rows."
-                        )
-                    if target_col.validation.constant_column:
-                        messages.append(
-                            f"[WARNING] Target column '{metadata.target_column}' is constant."
-                        )
-                    if target_col.validation.invalid_datatypes:
-                        messages.append(
-                            f"[ERROR] Target column '{metadata.target_column}' has invalid data types."
-                        )
+                    columns_report = self.report_on_column(
+                        target_col, is_target=True, is_group=False)
+                    messages.extend(columns_report)
         else:
-            messages.append("[CRITICAL] No target column specified in metadata.")
+            messages.append("[ERROR] No target column specified in metadata.")
         return messages
 
 
@@ -190,20 +182,22 @@ class ValidationReport:
                     )
                     messages.append(f"Validating groups column '{group_col}'...")
                     if group_col_validation is None:
-                        messages.append(
-                            f"[ERROR] Groups column '{group_col}' not found in dataset."
-                        )
+                        continue
                     else:
-                        if group_col_validation.validation.column_empty:
+                        if group_col_validation.schema.dtype not in [
+                            "category",
+                            "string",
+                        ]:
                             messages.append(
-                                f"[CRITICAL] Groups column '{group_col}' is empty."
+                                f"[WARNING] Target column '{metadata.target_column}' should be numeric ('category', 'string')."
                             )
-                        if group_col_validation.validation.missing_values > 0:
-                            messages.append(
-                                f"[CRITICAL] Groups column '{group_col}' has {group_col_validation.validation.missing_values} missing values."
-                            )
-                        #! WIP
-
+                        columns_report = self.report_on_column(
+                            group_col_validation, is_target=False, is_group=True)
+                        messages.extend(columns_report)
+        else:
+            messages.append(
+                "[ERROR] No target column specified in metadata."
+            )
         return messages
 
     def generate_report(
@@ -231,60 +225,23 @@ class ValidationReport:
             report.append("[CRITICAL] The dataset is empty.")
             report.append("")
 
-
-
         # Column validations
         report.append("[COLUMN VALIDATIONS]")
         has_column_issues = False
 
         for column_validation in self.validations.columns_validations:
-            if column_validation.messages:
-                has_column_issues = True
-                report.append(f"\nColumn: {column_validation.schema.name}")
-                report.extend(column_validation.messages)
-
-        if not has_column_issues:
-            report.append("✓ All columns passed validation.")
-
+            if column_validation.schema.name == metadata.target_column:
+                self.validate_target_column(dataset_empty=self.validations.dataset_empty, metadata=metadata)
+            elif column_validation.schema.name in metadata.groups_columns:
+                self.validate_groups_columns(
+                    dataset_empty=self.validations.dataset_empty,
+                    metadata=metadata,
+                )
+            else:
+                self.report_on_column(column_validation)
         report.append("")
 
-        # Special columns validation (groups_columns and target_column)
-        if self.validations.dataset_empty is False:  # Only validate special columns if dataset is not empty
-            report.append("[SPECIAL COLUMNS VALIDATION]")
-            special_validation = self.validate_special_columns(
-                self.columns_validations.dataset_empty, metadata
-            )
 
-            has_special_issues = (
-                special_validation["errors"]
-                or special_validation["warnings"]
-            )
-
-            if special_validation["errors"]:
-                report.append("[ERRORS]")
-                report.extend(special_validation["errors"])
-                report.append("")
-
-            if special_validation["warnings"]:
-                report.append("[WARNINGS]")
-                report.extend(special_validation["warnings"])
-                report.append("")
-
-            if not has_special_issues:
-                report.append("✓ All special columns passed validation.")
-                report.append("")
-
-            # Groups columns info
-            if metadata.groups_columns:
-                report.append(f"Groups Columns: {metadata.groups_columns}")
-            else:
-                report.append("Groups Columns: None")
-
-            # Target column info
-            if metadata.target_column:
-                report.append(f"Target Column: {metadata.target_column}")
-            else:
-                report.append("Target Column: None")
 
         report.append("")
         report.append("=" * 60)
