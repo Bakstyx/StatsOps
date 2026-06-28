@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from sys import exception
 from typing import Any, Dict, List, Optional
 import pandas as pd
 
@@ -227,23 +228,26 @@ class ValidationReport:
 
         # Column validations
         report.append("[COLUMN VALIDATIONS]")
-        has_column_issues = False
 
         for column_validation in self.validations.columns_validations:
             if column_validation.schema.name == metadata.target_column:
                 self.validate_target_column(dataset_empty=self.validations.dataset_empty, metadata=metadata)
-            elif column_validation.schema.name in metadata.groups_columns:
-                self.validate_groups_columns(
-                    dataset_empty=self.validations.dataset_empty,
-                    metadata=metadata,
-                )
             else:
-                self.report_on_column(column_validation)
+                groups = metadata.groups_columns
+                if groups is None:
+                    raise TypeError("metadata.groups_columns is None")
+                if column_validation.schema.name in groups:
+                    self.validate_groups_columns(
+                        dataset_empty=self.validations.dataset_empty,
+                        metadata=metadata,
+                    )
+                else:
+                    self.report_on_column(column_validation)
         report.append("")
-
 
 
         report.append("")
         report.append("=" * 60)
 
         return "\n".join(report)
+
