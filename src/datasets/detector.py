@@ -4,6 +4,16 @@ from src.datasets.schema import ColumnSchema, DatasetSchema
 
 
 class SchemaDetector:
+    """Class responsible for detecting and modifying the schema of a dataset, including automatic dtype definition based on categorical attributes.
+    This class provides methods to create a schema from a DataFrame, modify column data types, and apply automatic dtype logic based on the categorical attribute of columns in the schema.
+    Methods:
+        create_schema(dataframe: pd.DataFrame) -> DatasetSchema:
+            Creates a DatasetSchema from a given DataFrame by analyzing each column's properties.
+        modify_column_dtype(dataframe: pd.DataFrame, column: str, new_dtype: Literal["int64", "float64", "category", "string"], schema: DatasetSchema) -> tuple[pd.DataFrame, DatasetSchema]:
+            Modifies the data type of a specific column in the DataFrame and updates the corresponding schema.
+        apply_automatic_dtype_logic(dataframe: pd.DataFrame, schema: DatasetSchema) -> tuple[pd.DataFrame, DatasetSchema]:
+            Applies automatic dtype conversion logic based on the categorical attribute in the schema, converting columns marked as categorical to 'category' dtype and regenerating the schema accordingly.
+    """
     def __init__(self):
         pass
 

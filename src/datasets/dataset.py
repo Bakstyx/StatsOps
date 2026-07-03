@@ -8,6 +8,7 @@ from src.standard_format import replace_with
 from .metadata import DatasetMetadata
 from .schema import DatasetSchema
 from .detector import SchemaDetector
+from .validator import ValidationReport
 
 
 class Dataset():
@@ -118,4 +119,15 @@ class Dataset():
         self.schema = updated_schema
         return self
 
+    def get_validations(self):
+        self.validations = ValidationReport().validate_dataset(
+            dataframe=self.data, schema=self.schema
+        )
+        return self
+
+    def generate_report(self):
+        if self.validations is None:
+            self.get_validations()
+
+        return self.validations.generate_report(self.metadata)
 

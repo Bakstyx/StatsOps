@@ -21,7 +21,7 @@ class DatasetMetadata:
     @classmethod
     def from_dataframe(
         cls,
-        df: pd.DataFrame,
+        data : pd.DataFrame,
         name: str = "Unknown",
         description: str = "No description",
         source: str = "Unknown",
@@ -57,10 +57,10 @@ class DatasetMetadata:
             target_column=target_column,
             time_column=time_column,
             version=version,
-            num_rows=df.shape[0],
-            num_columns=df.shape[1],
+            num_rows=data.shape[0],
+            num_columns=data.shape[1],
             column_types={
-                col: str(df[col].dtype) for col in df.columns
+                col: str(data[col].dtype) for col in data.columns
             },
         )
 
