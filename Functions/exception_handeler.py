@@ -1,50 +1,22 @@
 #Libraries
 import pandas as pd
-import traceback
-import logging
 
 
-class ExceptionLogger():
-    
-    def __init__(self, log_file_path):
-        self.log_file_path = log_file_path
-        logging.basicConfig(filename=log_file_path, level=logging.ERROR, 
-                            format='%(asctime)s - %(levelname)s - %(message)s', 
-                            datefmt='%Y-%m-%d %H:%M:%S', filemode='a')
-        
-    def error_logger(self, error):
-        logging.error("An error occurred: %s", error)
-        logging.error("Traceback details:\n%s", traceback.format_exc())
-
-class Logger():
-    def __init__(self, log_file_path):
-        self.log_file_path = log_file_path
-        logging.basicConfig(filename=log_file_path, level=logging.NOTSET, 
-                                format='%(asctime)s - %(levelname)s - %(message)s', 
-                                filemode='a')
-        
-    def info_logger(self, error):
-        logging.error("An error occurred: %s", error)
-        logging.error("Traceback details:\n%s", traceback.format_exc())
-        
-    
-    def actions_logger(self, error):
-        logging.error("An error occurred: %s", error)
-        logging.error("Traceback details:\n%s", traceback.format_exc())
-        
-    def debug_logger(self, error):
-        logging.error("An error occurred: %s", error)
-        logging.error("Traceback details:\n%s", traceback.format_exc())
 
 
 #Functions
 
-def replace_with (element):
+def replace_with (element:str):
+    """
+    Replace special characters in a string with specified alternatives.
+    Args:
+        element (str): The input string to be processed.
+    Returns:
+        str: The processed string.
+    """
     chars_a = [":", "+", "-", "<", ">", "(", ")", "[", "]"]
     chars_b = ["/", ".", ",", "-", "  ", " "]
-def replace_with(element):
-    chars_a = [':', '+', '-', '<', '>', '(', ')', '[', ']']
-    chars_b = ['/', '.', ',', '-', '  ', ' ']
+    chars_c = ["ñ"]
     #first set of replace
     for char in chars_a:
         if char in element:
@@ -53,32 +25,17 @@ def replace_with(element):
     for char in chars_b:
         if char in element:
             element = element.replace(char, "_")
+    #third set of replace
+    for char in chars_c:
+        if char in element:
+            element = element.replace(char, "nn")
     return element
 
-def standard_name(names):
-    if isinstance(names, list):
-        lista= []
-        for name in names:
-            replaced_name = replace_with(name)
-            lista.append(replaced_name)
-        return lista
-    elif isinstance(names, str):
-        name = replace_with(names)
-        return name
-    else:
-        element = names.type()
-        print(f"{element} type incorrect")
 
-def name(name):
-    if "ñ" in name:
-        a = name.replace("ñ", "n")
-        return str(a)
-    else:
-        return str(name)
 
 def standard_dataframe(dataframe: pd.DataFrame):
     for column in dataframe.columns.tolist():
-        dataframe.rename(columns={column: name(standard_name(column)).lower()}, 
+        dataframe.rename(columns={column: name(standard_name(column)).lower()},
                             inplace=True)
     return dataframe
 
@@ -91,7 +48,7 @@ def anova_categorial_dtypes(dataframe):
 
 #remove "_" so in the grafics or tables
 def remove_under_score(name):
-    if type(name) == str:
+    if isinstance(name, str):
         name  = name.replace("_", " ")
         return str(name)
     else:
