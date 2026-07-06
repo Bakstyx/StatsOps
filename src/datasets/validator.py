@@ -64,7 +64,7 @@ class ValidationReport:
         self,
         dataframe: pd.DataFrame,
         schema: DatasetSchema,
-    ) -> DatasetValidator:
+    ):
         columns_validations = []
         for column_schema in schema.columns:
             column_data = dataframe[column_schema.name]
@@ -79,13 +79,12 @@ class ValidationReport:
             columns_validations=columns_validations,
             dataset_empty=dataset_empty,
         )
-
-        return self.validations
+        #return self.validations
+        return self
 
 #######################################
 #       REPORT COLUMNS VALIDATION    #
 #######################################
-
 
     def report_metadata(self, metadata: DatasetMetadata) :
         report = []
@@ -203,7 +202,6 @@ class ValidationReport:
     def generate_report(
         self,
         metadata: DatasetMetadata,
-        #dataframe: pd.DataFrame | None = None,
     ) -> str:
         if self.validations is None:
             return "No validation performed yet."
